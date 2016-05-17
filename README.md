@@ -103,6 +103,17 @@ Firebase
 2. 作成された *Demo.xcworkspace* を開きます。  
 3. *UsersViewController.swift* 内にある *firebaseURL* に、Firebase Data URLを設定します。  
 
+## Cocoapods
+Cocoapodsからのインストールに対応しています。  
+下記のようにPodfileを作成し、 *pod install* を実行してください。  
+```
+use_frameworks!
+
+target ‘プロジェクト名’ do
+pod ‘IF_FirebaseFollowHelperKit’
+end
+```
+
 ## License
 [MIT License](https://github.com/ICTFractal/IF_FirebaseFollowHelperKit/edit/master/LICENSE)
 
