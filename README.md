@@ -108,4 +108,3 @@ Firebase
 
 ## Author
 [ICT Fractal](https://github.com/ICTFractal)
->>>>>>> origin/master
