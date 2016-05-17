@@ -25,6 +25,9 @@ Pod::Spec.new do |s|
   #   * Write the description between the DESC delimiters below.
   #   * Finally, don't worry about the indent, CocoaPods strips it!
   s.description  = <<-DESC
+                  - Firebaseのデータ構造を意識せずに、フォロー関連の機能を利用できます。
+                  - 他ユーザがログインユーザに関わる操作を行った場合、リアルタイムに通知を受け取る事ができます。
+                  - 単純なArrayで処理結果が返されるので、filterなどの加工処理が容易です。
                    DESC
 
   s.homepage     = "https://github.com/ICTFractal/IF_FirebaseFollowHelperKit"
@@ -38,7 +41,7 @@ Pod::Spec.new do |s|
   #  Popular ones are 'MIT', 'BSD' and 'Apache License, Version 2.0'.
   #
 
-  s.license      = "MIT (example)"
+  s.license      = { :type => "MIT", :file => "LICENSE" }
   # s.license      = { :type => "MIT", :file => "FILE_LICENSE" }
 
 
@@ -52,10 +55,10 @@ Pod::Spec.new do |s|
   #  profile URL.
   #
 
-  s.author             = { "ICT Fractal" => "email@address.com" }
+  s.author             = { "ICT Fractal" => "kuboshima@ict-fractal.com" }
   # Or just: s.author    = "ICT Fractal"
   # s.authors            = { "ICT Fractal" => "email@address.com" }
-  # s.social_media_url   = "http://twitter.com/ICT Fractal"
+  s.social_media_url   = "https://twitter.com/melodyboxyk"
 
   # ――― Platform Specifics ――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   #
@@ -64,7 +67,7 @@ Pod::Spec.new do |s|
   #
 
   # s.platform     = :ios
-  # s.platform     = :ios, "5.0"
+  s.platform     = :ios, "9.3"
 
   #  When using multiple platforms
   # s.ios.deployment_target = "5.0"
@@ -90,8 +93,8 @@ Pod::Spec.new do |s|
   #  Not including the public_header_files will make all headers public.
   #
 
-  s.source_files  = "Classes", "Classes/**/*.{h,m}"
-  s.exclude_files = "Classes/Exclude"
+  s.source_files  = "IF_FirebaseFollowHelperKit/**/*.swift"
+  # s.exclude_files = "Classes/Exclude"
 
   # s.public_header_files = "Classes/**/*.h"
 
@@ -129,9 +132,9 @@ Pod::Spec.new do |s|
   #  where they will only apply to your library. If you depend on other Podspecs
   #  you can include multiple dependencies to ensure it works.
 
-  # s.requires_arc = true
+  s.requires_arc = true
 
   # s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/usr/include/libxml2" }
-  # s.dependency "JSONKit", "~> 1.4"
+  # s.dependency "Firebase"
 
 end
