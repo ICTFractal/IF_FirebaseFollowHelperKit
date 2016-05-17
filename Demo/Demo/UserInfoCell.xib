@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="10117" systemVersion="15F34" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" selectionStyle="default" indentationWidth="10" reuseIdentifier="Cell" rowHeight="103" id="HQC-Ir-PCU" customClass="UserInfoCell" customModule="Demo" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="481" height="103"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="HQC-Ir-PCU" id="XuA-AW-ZeQ">
+                <rect key="frame" x="0.0" y="0.0" width="481" height="102"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="UserName" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="8RT-OZ-ZgQ">
+                        <rect key="frame" x="8" y="13" width="180" height="21"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="21" id="LgA-PP-aVQ"/>
+                            <constraint firstAttribute="width" constant="180" id="fI8-jQ-BON"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Has follow you." textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="6dS-5Q-hdZ">
+                        <rect key="frame" x="8" y="39" width="150" height="21"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="21" id="PCQ-1J-R1i"/>
+                            <constraint firstAttribute="width" constant="150" id="j64-DQ-85L"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Has blocked you." textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Bcu-4P-gbN">
+                        <rect key="frame" x="8" y="65" width="150" height="21"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="150" id="G0D-Xu-o0K"/>
+                            <constraint firstAttribute="height" constant="21" id="eue-vW-eI6"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Blocking" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="WwP-gX-7z0">
+                        <rect key="frame" x="391" y="15" width="72" height="72"/>
+                        <gestureRecognizers/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="72" id="gt0-Ox-gHC"/>
+                            <constraint firstAttribute="height" constant="72" id="pZC-qb-XEB"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <label opaque="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Following" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="x63-HC-ged">
+                        <rect key="frame" x="309" y="15" width="72" height="72"/>
+                        <gestureRecognizers/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="72" id="4ex-7O-lp6"/>
+                            <constraint firstAttribute="height" constant="72" id="6ay-hG-vD6"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" type="system" pointSize="15"/>
+                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                </subviews>
+                <constraints>
+                    <constraint firstAttribute="trailingMargin" secondItem="WwP-gX-7z0" secondAttribute="trailing" constant="10" id="1EM-n1-ACx"/>
+                    <constraint firstItem="Bcu-4P-gbN" firstAttribute="top" secondItem="6dS-5Q-hdZ" secondAttribute="bottom" constant="5" id="3OM-4g-qGl"/>
+                    <constraint firstItem="WwP-gX-7z0" firstAttribute="leading" secondItem="x63-HC-ged" secondAttribute="trailing" constant="10" id="BH4-AB-dmJ"/>
+                    <constraint firstItem="Bcu-4P-gbN" firstAttribute="leading" secondItem="XuA-AW-ZeQ" secondAttribute="leadingMargin" id="E2a-k7-zcB"/>
+                    <constraint firstItem="x63-HC-ged" firstAttribute="centerY" secondItem="XuA-AW-ZeQ" secondAttribute="centerY" id="IVX-wa-w8p"/>
+                    <constraint firstItem="WwP-gX-7z0" firstAttribute="centerY" secondItem="XuA-AW-ZeQ" secondAttribute="centerY" id="Qui-Yf-UUJ"/>
+                    <constraint firstItem="6dS-5Q-hdZ" firstAttribute="leading" secondItem="XuA-AW-ZeQ" secondAttribute="leadingMargin" id="WON-tE-J1N"/>
+                    <constraint firstItem="6dS-5Q-hdZ" firstAttribute="top" secondItem="8RT-OZ-ZgQ" secondAttribute="bottom" constant="5" id="bsZ-Op-VFI"/>
+                    <constraint firstItem="8RT-OZ-ZgQ" firstAttribute="leading" secondItem="XuA-AW-ZeQ" secondAttribute="leadingMargin" id="qzd-mW-gNR"/>
+                    <constraint firstItem="8RT-OZ-ZgQ" firstAttribute="top" secondItem="XuA-AW-ZeQ" secondAttribute="topMargin" constant="5" id="tHg-JR-lhe"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="blockButton" destination="WwP-gX-7z0" id="3JA-kg-qx2"/>
+                <outlet property="followButton" destination="x63-HC-ged" id="6sN-bm-xyg"/>
+                <outlet property="hasBlockedStateLabel" destination="Bcu-4P-gbN" id="ucJ-wM-GLD"/>
+                <outlet property="hasFollowStateLabel" destination="6dS-5Q-hdZ" id="Hlj-3H-xr8"/>
+                <outlet property="userNameLabel" destination="8RT-OZ-ZgQ" id="TXa-Dd-LgL"/>
+            </connections>
+            <point key="canvasLocation" x="500.5" y="314.5"/>
+        </tableViewCell>
+    </objects>
+</document>
