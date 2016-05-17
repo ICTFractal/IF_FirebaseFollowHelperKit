@@ -105,7 +105,7 @@ Firebase
 
 ## Cocoapods
 Cocoapodsからのインストールに対応しています。  
-下記のようにPodfileを作成し、 *pod install* を実行してください。 
+下記のようにPodfileを作成し、 *pod install* を実行してください。   
   ※Firebaseもインストールされます。
 ```
 use_frameworks!
