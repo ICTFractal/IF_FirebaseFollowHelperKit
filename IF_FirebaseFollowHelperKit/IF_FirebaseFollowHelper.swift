@@ -210,6 +210,10 @@ Firebaseにフォロー/フォロワー管理機能を追加すヘルパーク�
 */
 public class IF_FirebaseFollowHelper {
 	
+	/**
+		共有インスタンス  
+		こちらからIF_FirebaseFollowHelperの各機能をコールしてください。
+	*/
 	public static let sharedHelper = IF_FirebaseFollowHelper()
 
 	private var firebaseRef: FIRDatabaseReference!

@@ -113,7 +113,8 @@ Firebase/Database
 Cocoapodsからのインストールに対応しています。  
 下記のようにPodfileを作成し、 *pod install* を実行してください。   
 　※ Firebaseもインストールされます。  
-　※ 旧FirebaseSDK対応版はバージョン **0.0.1** です。
+　※ 旧FirebaseSDK対応版はバージョン **0.0.1** です。  
+### <span style="color:red">2016/05/23現在、podspecの設定が成功しておらず最新版がCocoapodsに登録できていません。恐れ入りますが、Firebase SDK(3.2.0)対応版は手動でプロジェクトに追加してください。</span>
   
 ```
 use_frameworks!
