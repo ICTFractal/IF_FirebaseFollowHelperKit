@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "IF_FirebaseFollowHelperKit"
-  s.version      = "0.0.1"
+  s.version      = "0.1.0"
   s.summary      = "Firebaseにユーザフォロー機能を追加します。"
 
   # This description is used to generate tags and improve search results.
@@ -135,6 +135,8 @@ Pod::Spec.new do |s|
   s.requires_arc = true
 
   # s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/usr/include/libxml2" }
-  s.dependency "Firebase"
+  s.dependency "Firebase/Core"
+  s.dependency "Firebase/Auth"
+  s.dependency "Firebase/Database"
 
 end
