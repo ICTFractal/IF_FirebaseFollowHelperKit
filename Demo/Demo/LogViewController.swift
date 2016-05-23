@@ -27,13 +27,7 @@ class LogViewController: UIViewController, UITableViewDelegate, UITableViewDataS
     
 	func addLog(message: String) {
 		self.log.insert((message, NSDate()), atIndex: 0)
-		
-//		self.tableView.reloadData()
-//		if self.log.count == 1 {
-//			self.tableView.reloadData()
-//		} else {
-			self.tableView.insertRowsAtIndexPaths([NSIndexPath(forRow: 0, inSection: 0)], withRowAnimation: .Automatic)
-//		}
+		self.tableView.insertRowsAtIndexPaths([NSIndexPath(forRow: 0, inSection: 0)], withRowAnimation: .Automatic)
 	}
 
     // MARK: TableView
