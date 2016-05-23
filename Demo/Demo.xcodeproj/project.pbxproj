@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		801F04281CF1044D0004BDF7 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 801F04271CF1044D0004BDF7 /* GoogleService-Info.plist */; };
 		80A66C581CEBA7AF0034998E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A66C571CEBA7AF0034998E /* AppDelegate.swift */; };
 		80A66C5D1CEBA7AF0034998E /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 80A66C5B1CEBA7AF0034998E /* Main.storyboard */; };
 		80A66C5F1CEBA7AF0034998E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 80A66C5E1CEBA7AF0034998E /* Assets.xcassets */; };
@@ -20,6 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		801F04271CF1044D0004BDF7 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		80A66C541CEBA7AF0034998E /* Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Demo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		80A66C571CEBA7AF0034998E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		80A66C5C1CEBA7AF0034998E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -87,6 +89,7 @@
 				80A66C5E1CEBA7AF0034998E /* Assets.xcassets */,
 				80A66C601CEBA7AF0034998E /* LaunchScreen.storyboard */,
 				80A66C631CEBA7AF0034998E /* Info.plist */,
+				801F04271CF1044D0004BDF7 /* GoogleService-Info.plist */,
 				80A66C7A1CEBB0260034998E /* IF_FirebaseFollowHelper.swift */,
 			);
 			path = Demo;
@@ -163,6 +166,7 @@
 			files = (
 				80A66C711CEBA86F0034998E /* UserInfoCell.xib in Resources */,
 				80A66C621CEBA7AF0034998E /* LaunchScreen.storyboard in Resources */,
+				801F04281CF1044D0004BDF7 /* GoogleService-Info.plist in Resources */,
 				80A66C5F1CEBA7AF0034998E /* Assets.xcassets in Resources */,
 				80A66C5D1CEBA7AF0034998E /* Main.storyboard in Resources */,
 			);

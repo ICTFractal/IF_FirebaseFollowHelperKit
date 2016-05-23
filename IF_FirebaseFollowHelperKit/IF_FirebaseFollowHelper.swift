@@ -209,10 +209,12 @@ Firebaseにフォロー/フォロワー管理機能を追加すヘルパーク�
              すべての通知を受け取りたい場合は初回インスタンス生成以降、常にいずれかのインスタンスにオブザーバを設定してください。
 */
 public class IF_FirebaseFollowHelper {
+	
+	public static let sharedHelper = IF_FirebaseFollowHelper()
 
-	private var firebaseRef: Firebase!
-	private var followRef: Firebase!
-	private var blockRef: Firebase!
+	private var firebaseRef: FIRDatabaseReference!
+	private var followRef: FIRDatabaseReference!
+	private var blockRef: FIRDatabaseReference!
 	private let followHelperPath		= "IFFollowHelper"
 	private let followPath				= "Follow"
 	private let blockPath				= "Block"
@@ -227,8 +229,8 @@ public class IF_FirebaseFollowHelper {
 	private let item_notifiedBlockUser	= "notifiedBlockUser"
 	
 	// オブザーバ登録
-	private var observeUID = ""
-	private var observeHandles = [(FQuery, UInt)]()
+	private var observeUID: String? = nil
+	private var observeHandles = [(FIRDatabaseQuery, UInt)]()
 	
 	// NSNotification.userInfo項目
 	private let notifyInfo_uid			= "uid"
@@ -245,42 +247,52 @@ public class IF_FirebaseFollowHelper {
 		
 		/// ブロック由来の処理失敗
 		case FailureByBlock
+		
+		/// サインインしていない事による処理失敗
+		case NotSignedIn
 	}
 	
 	/// デバッグ情報出力設定
 	public static var outputDebug = true
 	
 	private init() {
-		self.firebaseRef = nil
-	}
-	
-	/**
-	- parameter firebaseRef: ユーザ認証済みであり、URLの設定されたFirebaseオブジェクト
-	*/
-	public init(firebaseRef: Firebase) {
-		self.firebaseRef = firebaseRef
-		self.followRef	= self.firebaseRef.childByAppendingPath(self.followHelperPath).childByAppendingPath(self.followPath)
-		self.blockRef	= self.firebaseRef.childByAppendingPath(self.followHelperPath).childByAppendingPath(self.blockPath)
-		assert(self.firebaseRef.authData != nil, "no user is signed in.")
+		self.firebaseRef	= FIRDatabase.database().reference()
+		self.followRef		= self.firebaseRef.child(self.followHelperPath).child(self.followPath)
+		self.blockRef		= self.firebaseRef.child(self.followHelperPath).child(self.blockPath)
 		
-		self.observeUID = self.firebaseRef.authData.uid
-		self.observe()
-		
-		// ユーザ切り替えに対応
-		self.firebaseRef.observeAuthEventWithBlock() { authData in
-			if self.observeUID != authData.uid {
-				self.observeUID = authData.uid
-				self.observe()
-			}
+		self.observeUID		= FIRAuth.auth()?.currentUser?.uid
+		if self.observeUID != nil {
+			self.observe()
 		}
 		
+		// ユーザ切り替えに対応
+		FIRAuth.auth()!.addAuthStateDidChangeListener() { auth, user in
+			if let user = user {
+				self.debugLog("User is signed in with [\(user.uid)]")
+				if self.observeUID != user.uid {
+					self.observeUID = user.uid
+					self.observe()
+				}
+			} else {
+				self.debugLog("No user is signed in. remove all observer.")
+				self.observeUID = nil
+				
+				self.observeHandles.forEach() {
+					$0.removeObserverWithHandle($1)
+				}
+				self.observeHandles.removeAll()
+			}
+		}
 	}
 	
 	/**
 	オブザーバ登録
 	*/
 	private func observe() {
-		self.debugLog("add observe [\(self.firebaseRef.authData.uid)]")
+		if self.observeUID == nil {
+			return
+		}
+		self.debugLog("add observe [\(self.observeUID!)]")
 		
 		self.observeHandles.forEach() {
 			$0.removeObserverWithHandle($1)
@@ -288,51 +300,54 @@ public class IF_FirebaseFollowHelper {
 		self.observeHandles.removeAll()
 		
 		// Followノードの監視対象
-		let targetFollowRef		= self.followRef.queryOrderedByChild(item_uid).queryEqualToValue(self.firebaseRef.authData.uid)
-		let targetFollowerRef	= self.followRef.queryOrderedByChild(item_followID).queryEqualToValue(self.firebaseRef.authData.uid)
+		let targetFollowRef		= self.followRef.queryOrderedByChild(item_uid).queryEqualToValue(self.observeUID!)
+		let targetFollowerRef	= self.followRef.queryOrderedByChild(item_followID).queryEqualToValue(self.observeUID!)
 		
 		// フォロー追加の監視
 		self.observeHandles.append((targetFollowRef,
 		targetFollowRef.observeEventType(.ChildAdded, withBlock: { data in
-			if let isNotified = data.value[self.item_notifiedUser] as? Bool {
-				if isNotified == false {
-					let updateRef = self.followRef.childByAppendingPath(data.key)
-					let dic: [String: AnyObject] = [self.item_notifiedUser: true]
-					updateRef.updateChildValues(dic)
-					
-					if let uid = data.value[self.item_followID] as? String,
-						let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
-						let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-						NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.AddedFollow, object: self, userInfo: userInfo)
+			if let value = data.value as? [String: AnyObject] {
+				if let isNotified = value[self.item_notifiedUser] as? Bool {
+					if isNotified == false {
+						let updateRef = self.followRef.child(data.key)
+						let dic: [String: AnyObject] = [self.item_notifiedUser: true]
+						updateRef.updateChildValues(dic)
+						
+						if let uid = value[self.item_followID] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+							let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.AddedFollow, object: self, userInfo: userInfo)
+						}
 					}
 				}
 			}
-			
 		})))
 		
 		// フォロー削除の監視
 		self.observeHandles.append((targetFollowRef,
 		targetFollowRef.observeEventType(.ChildRemoved, withBlock: { data in
-			if let uid = data.value[self.item_followID] as? String,
-				let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
-				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemovedFollow, object: self, userInfo: userInfo)
+			if let value = data.value as? [String: AnyObject] {
+				if let uid = value[self.item_followID] as? String,
+					let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+					let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+					NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemovedFollow, object: self, userInfo: userInfo)
+				}
 			}
 		})))
 		
 		// フォロワー追加の監視
 		self.observeHandles.append((targetFollowerRef,
 		targetFollowerRef.observeEventType(.ChildAdded, withBlock: { data in
-			if let isNotified = data.value[self.item_notifiedFollower] as? Bool {
-				if isNotified == false {
-					let updateRef = self.followRef.childByAppendingPath(data.key)
-					let dic: [String: AnyObject] = [self.item_notifiedFollower: true]
-					updateRef.updateChildValues(dic)
-					
-					if let uid = data.value[self.item_uid] as? String,
-						let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
-						let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-						NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.AddedFollower, object: self, userInfo: userInfo)
+			if let value = data.value as? [String: AnyObject] {
+				if let isNotified = value[self.item_notifiedFollower] as? Bool {
+					if isNotified == false {
+						let updateRef = self.followRef.child(data.key)
+						let dic: [String: AnyObject] = [self.item_notifiedFollower: true]
+						updateRef.updateChildValues(dic)
+						
+						if let uid = value[self.item_uid] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+							let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.AddedFollower, object: self, userInfo: userInfo)
+						}
 					}
 				}
 			}
@@ -341,32 +356,34 @@ public class IF_FirebaseFollowHelper {
 		// フォロワー削除の監視
 		self.observeHandles.append((targetFollowerRef,
 		targetFollowerRef.observeEventType(.ChildRemoved, withBlock: { data in
-			if let uid = data.value[self.item_uid] as? String,
-				let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
-				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemovedFollower, object: self, userInfo: userInfo)
+			if let value = data.value as? [String: AnyObject] {
+				if let uid = value[self.item_uid] as? String,
+					let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+					let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+					NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemovedFollower, object: self, userInfo: userInfo)
+				}
 			}
 		})))
 		
 		
 		// Blockノードの監視対象
-		let targetBlockRef		= self.blockRef.queryOrderedByChild(item_uid).queryEqualToValue(self.firebaseRef.authData.uid)
-		let targetBlockerRef	= self.blockRef.queryOrderedByChild(item_blockID).queryEqualToValue(self.firebaseRef.authData.uid)
+		let targetBlockRef		= self.blockRef.queryOrderedByChild(item_uid).queryEqualToValue(self.observeUID!)
+		let targetBlockerRef	= self.blockRef.queryOrderedByChild(item_blockID).queryEqualToValue(self.observeUID!)
 		
 		// ブロック追加の監視
 		self.observeHandles.append((targetBlockRef,
 		targetBlockRef.observeEventType(.ChildAdded, withBlock: { data in
-			if let isNotified = data.value[self.item_notifiedUser] as? Bool {
-				if isNotified == false {
-					let updateRef = self.blockRef.childByAppendingPath(data.key)
-					let dic: [String: AnyObject] = [self.item_notifiedUser: true]
-					updateRef.updateChildValues(dic)
-					
-					if let uid = data.value[self.item_blockID] as? String,
-						let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
+			if let value = data.value as? [String: AnyObject] {
+				if let isNotified = value[self.item_notifiedUser] as? Bool {
+					if isNotified == false {
+						let updateRef = self.blockRef.child(data.key)
+						let dic: [String: AnyObject] = [self.item_notifiedUser: true]
+						updateRef.updateChildValues(dic)
 						
-						let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-						NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.AddedBlock, object: self, userInfo: userInfo)
+						if let uid = value[self.item_blockID] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+							let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.AddedBlock, object: self, userInfo: userInfo)
+						}
 					}
 				}
 			}
@@ -375,28 +392,28 @@ public class IF_FirebaseFollowHelper {
 		// ブロック削除の監視
 		self.observeHandles.append((targetBlockRef,
 		targetBlockRef.observeEventType(.ChildRemoved, withBlock: { data in
-			if let uid = data.value[self.item_blockID] as? String,
-				let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
-				
-				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemovedBlock, object: self, userInfo: userInfo)
+			if let value = data.value as? [String: AnyObject] {
+				if let uid = value[self.item_blockID] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+					let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+					NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemovedBlock, object: self, userInfo: userInfo)
+				}
 			}
 		})))
 		
 		// 被ブロック追加の監視
 		self.observeHandles.append((targetBlockerRef,
 		targetBlockerRef.observeEventType(.ChildAdded, withBlock: { data in
-			if let isNotified = data.value[self.item_notifiedBlockUser] as? Bool {
-				if isNotified == false {
-					let updateRef = self.blockRef.childByAppendingPath(data.key)
-					let dic: [String: AnyObject] = [self.item_notifiedBlockUser: true]
-					updateRef.updateChildValues(dic)
-					
-					if let uid = data.value[self.item_uid] as? String,
-						let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
+			if let value = data.value as? [String: AnyObject] {
+				if let isNotified = value[self.item_notifiedBlockUser] as? Bool {
+					if isNotified == false {
+						let updateRef = self.blockRef.child(data.key)
+						let dic: [String: AnyObject] = [self.item_notifiedBlockUser: true]
+						updateRef.updateChildValues(dic)
 						
-						let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-						NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.BlockedFromSomeone, object: self, userInfo: userInfo)
+						if let uid = value[self.item_uid] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+							let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.BlockedFromSomeone, object: self, userInfo: userInfo)
+						}
 					}
 				}
 			}
@@ -405,11 +422,11 @@ public class IF_FirebaseFollowHelper {
 		// 被ブロック削除の監視
 		self.observeHandles.append((targetBlockerRef,
 		targetBlockerRef.observeEventType(.ChildRemoved, withBlock: { data in
-			if let uid = data.value[self.item_uid] as? String,
-				let timestamp = data.value[self.item_timestamp] as? NSTimeInterval {
-				
-				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
-				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemoveBlockFromSomeone, object: self, userInfo: userInfo)
+			if let value = data.value as? [String: AnyObject] {
+				if let uid = value[self.item_uid] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+					let userInfo: [String: AnyObject] = [self.notifyInfo_uid: uid, self.notifyInfo_timestamp: self.convertToNSDate(timestamp)]
+					NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.RemoveBlockFromSomeone, object: self, userInfo: userInfo)
+				}
 			}
 		})))
 	}
@@ -457,15 +474,20 @@ public class IF_FirebaseFollowHelper {
 	Closureでは取得したユーザのuidと登録日時の一覧を使用できます。  
 	*/
 	public func getFollowList(completion: (([IF_FirebaseFollowHelperBasicUserInfo]) -> Void)?) {
-		self.followRef.queryOrderedByChild(item_uid).queryEqualToValue(self.firebaseRef.authData.uid).observeSingleEventOfType(.Value, withBlock: { data in
-			// Array形式に変換する
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			completion?([IF_FirebaseFollowHelperBasicUserInfo]())
+			return
+		}
+		
+		self.followRef.queryOrderedByChild(item_uid).queryEqualToValue(self.observeUID!).observeSingleEventOfType(.Value, withBlock: { data in
 			var followList = [IF_FirebaseFollowHelperBasicUserInfo]()
 			data.children.forEach() {
-				let user = $0 as! FDataSnapshot
-				if let followID = user.value[self.item_followID] as? String,
-				   let timestamp = user.value[self.item_timestamp] as? NSTimeInterval {
-					
-					followList.append((followID, self.convertToNSDate(timestamp)))
+				let user = $0 as! FIRDataSnapshot
+				if let value = user.value as? [String: AnyObject] {
+					if let followID = value[self.item_followID] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+						followList.append((followID, self.convertToNSDate(timestamp)))
+					}
 				}
 			}
 			
@@ -484,15 +506,20 @@ public class IF_FirebaseFollowHelper {
 	Closureでは取得したユーザのuidと登録日時の一覧を使用できます。
 	*/
 	public func getFollowerList(completion: (([IF_FirebaseFollowHelperBasicUserInfo]) -> Void)?) {
-		self.followRef.queryOrderedByChild(item_followID).queryEqualToValue(self.firebaseRef.authData.uid).observeSingleEventOfType(.Value, withBlock: { data in
-			// Array形式に変換する
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			completion?([IF_FirebaseFollowHelperBasicUserInfo]())
+			return
+		}
+		
+		self.followRef.queryOrderedByChild(item_followID).queryEqualToValue(self.observeUID!).observeSingleEventOfType(.Value, withBlock: { data in
 			var followerList = [IF_FirebaseFollowHelperBasicUserInfo]()
 			data.children.forEach() {
-				let user = $0 as! FDataSnapshot
-				if let followerID = user.value[self.item_uid] as? String,
-				   let timestamp = user.value[self.item_timestamp] as? NSTimeInterval {
-					
-					followerList.append((followerID, self.convertToNSDate(timestamp)))
+				let user = $0 as! FIRDataSnapshot
+				if let value = user.value as? [String: AnyObject] {
+					if let followerID = value[self.item_uid] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+						followerList.append((followerID, self.convertToNSDate(timestamp)))
+					}
 				}
 			}
 			
@@ -508,15 +535,20 @@ public class IF_FirebaseFollowHelper {
 	Closureでは取得したユーザのuidと登録日時の一覧を使用できます。
 	*/
 	public func getBlockList(completion: (([IF_FirebaseFollowHelperBasicUserInfo]) -> Void)?) {
-		self.blockRef.queryOrderedByChild(item_uid).queryEqualToValue(self.firebaseRef.authData.uid).observeSingleEventOfType(.Value, withBlock: { data in
-			// Array形式に変換する
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			completion?([IF_FirebaseFollowHelperBasicUserInfo]())
+			return
+		}
+		
+		self.blockRef.queryOrderedByChild(item_uid).queryEqualToValue(self.observeUID!).observeSingleEventOfType(.Value, withBlock: { data in
 			var blockList = [(uid: String, timestamp: NSDate)]()
 			data.children.forEach() {
-				let user = $0 as! FDataSnapshot
-				if let blockID = user.value[self.item_blockID] as? String,
-				   let timestamp = user.value[self.item_timestamp] as? NSTimeInterval {
-					
-					blockList.append((blockID, self.convertToNSDate(timestamp)))
+				let user = $0 as! FIRDataSnapshot
+				if let value = user.value as? [String: AnyObject] {
+					if let blockID = value[self.item_blockID] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+						blockList.append((blockID, self.convertToNSDate(timestamp)))
+					}
 				}
 			}
 			
@@ -535,15 +567,20 @@ public class IF_FirebaseFollowHelper {
 	Closureでは取得したユーザのuidと登録日時の一覧を使用できます。
 	*/
 	public func getBlockerList(completion: (([IF_FirebaseFollowHelperBasicUserInfo]) -> Void)?) {
-		self.blockRef.queryOrderedByChild(item_blockID).queryEqualToValue(self.firebaseRef.authData.uid).observeSingleEventOfType(.Value, withBlock: { data in
-			// Array形式に変換する
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			completion?([IF_FirebaseFollowHelperBasicUserInfo]())
+			return
+		}
+		
+		self.blockRef.queryOrderedByChild(item_blockID).queryEqualToValue(self.observeUID!).observeSingleEventOfType(.Value, withBlock: { data in
 			var blockerList = [(uid: String, timestamp: NSDate)]()
 			data.children.forEach() {
-				let user = $0 as! FDataSnapshot
-				if let blockerID = user.value[self.item_uid] as? String,
-				   let timestamp = user.value[self.item_timestamp] as? NSTimeInterval {
-					
-					blockerList.append((blockerID, self.convertToNSDate(timestamp)))
+				let user = $0 as! FIRDataSnapshot
+				if let value = user.value as? [String: AnyObject] {
+					if let blockerID = value[self.item_uid] as? String, let timestamp = value[self.item_timestamp] as? NSTimeInterval {
+						blockerList.append((blockerID, self.convertToNSDate(timestamp)))
+					}
 				}
 			}
 			
@@ -576,16 +613,28 @@ public class IF_FirebaseFollowHelper {
 	処理完了時に、*IF_FirebaseFollowHelperMessage.DidAddFollowProc*が通知されます。
 	*/
 	public func follow(userIDs: [String]) {
+		let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
+		
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			let error = self.error(.NotSignedIn, message: "Not signed in user.")
+			userIDs.forEach() {
+				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: $0, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
+				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedFollow, object: self, userInfo: userInfo)
+			}
+			NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidAddFollowProc, object: self, userInfo: nil)
+			return
+		}
+		
 		self.getFollowList() { followList in
 			let addList = userIDs.filter() { !followList.map() { $0.0 }.contains($0) }
-			let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
 			var procCount = 0
 			addList.forEach() {
 				let userRef = self.followRef.childByAutoId()
 				let followID = $0
-				let dic: [String: AnyObject] = [self.item_uid: self.firebaseRef.authData.uid, self.item_followID: followID, self.item_notifiedUser: false, self.item_notifiedFollower: false, self.item_timestamp: FirebaseServerValue.timestamp()]
+				let dic: [String: AnyObject] = [self.item_uid: self.observeUID!, self.item_followID: followID, self.item_notifiedUser: false, self.item_notifiedFollower: false, self.item_timestamp: FIRServerValue.timestamp()]
 				userRef.updateChildValues(dic, withCompletionBlock: { error, firebaseRef in
-					if error != nil {
+					if let error = error {
 						self.debugLog("follow failed [\(followID)]")
 						let userInfo: [String: AnyObject] = [self.notifyInfo_uid: followID, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
 						NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedFollow, object: self, userInfo: userInfo)
@@ -632,37 +681,53 @@ public class IF_FirebaseFollowHelper {
 	処理完了時に*IF_FirebaseFollowHelperMessage.DidRemoveFollowProc*が通知されます。
 	*/
 	public func unFollow(userIDs: [String]) {
-		self.followRef.queryOrderedByChild(item_uid).queryEqualToValue(self.firebaseRef.authData.uid).observeSingleEventOfType(.Value, withBlock: { data in
-			var removeList = [FDataSnapshot]()
+		let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
+		
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			let error = self.error(.NotSignedIn, message: "Not signed in user.")
+			userIDs.forEach() {
+				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: $0, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
+				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedRemoveFollow, object: self, userInfo: userInfo)
+			}
+			NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidRemoveFollowProc, object: self, userInfo: nil)
+			return
+		}
+		
+		self.followRef.queryOrderedByChild(item_uid).queryEqualToValue(self.observeUID!).observeSingleEventOfType(.Value, withBlock: { data in
+			var removeList = [FIRDataSnapshot]()
 			data.children.forEach() {
-				let user = $0 as! FDataSnapshot
-				if let followID = user.value[self.item_followID] as? String {
-					if userIDs.contains(followID) {
-						removeList.append(user)
+				let user = $0 as! FIRDataSnapshot
+				if let value = user.value as? [String: AnyObject] {
+					if let followID = value[self.item_followID] as? String {
+						if userIDs.contains(followID) {
+							removeList.append(user)
+						}
 					}
 				}
 			}
 			
-			let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
 			var procCount = 0
 			removeList.forEach() {
-				if let followID = $0.value[self.item_followID] as? String {
-					let removeRef = self.followRef.childByAppendingPath($0.key)
-					removeRef.removeValueWithCompletionBlock({ error, firebaseRef in
-						if error != nil {
-							self.debugLog("remove follow failed [\(followID)]")
-							let userInfo: [String: AnyObject] = [self.notifyInfo_uid: followID, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
-							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedRemoveFollow, object: self, userInfo: userInfo)
-						}
-						else {
-							self.debugLog("remove follow [\(followID)]")
-						}
-						
-						procCount += 1
-						if procCount >= removeList.count {
-							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidRemoveFollowProc, object: self, userInfo: nil)
-						}
-					})
+				if let value = $0.value as? [String: AnyObject] {
+					if let followID = value[self.item_followID] as? String {
+						let removeRef = self.followRef.child($0.key)
+						removeRef.removeValueWithCompletionBlock({ error, firebaseRef in
+							if let error = error {
+								self.debugLog("remove follow failed [\(followID)]")
+								let userInfo: [String: AnyObject] = [self.notifyInfo_uid: followID, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
+								NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedRemoveFollow, object: self, userInfo: userInfo)
+							}
+							else {
+								self.debugLog("remove follow [\(followID)]")
+							}
+							
+							procCount += 1
+							if procCount >= removeList.count {
+								NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidRemoveFollowProc, object: self, userInfo: nil)
+							}
+						})
+					}
 				}
 			}
 			
@@ -697,16 +762,28 @@ public class IF_FirebaseFollowHelper {
 	処理完了時に、*DIF_FirebaseFollowHelperMessage.DidAddBlockProc*が通知されます。
 	*/
 	public func block(userIDs: [String]) {
+		let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
+		
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			let error = self.error(.NotSignedIn, message: "Not signed in user.")
+			userIDs.forEach() {
+				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: $0, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
+				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedBlock, object: self, userInfo: userInfo)
+			}
+			NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidAddBlockProc, object: self, userInfo: nil)
+			return
+		}
+		
 		self.getBlockList() { blockList in
 			let addList = userIDs.filter() { !blockList.map() { $0.0 }.contains($0) }
-			let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
 			var procCount = 0
 			addList.forEach() {
 				let userRef = self.blockRef.childByAutoId()
 				let blockID = $0
-				let dic: [String: AnyObject] = [self.item_uid: self.firebaseRef.authData.uid, self.item_blockID: blockID, self.item_notifiedUser: false, self.item_notifiedBlockUser:false, self.item_timestamp: FirebaseServerValue.timestamp()]
+				let dic: [String: AnyObject] = [self.item_uid: self.observeUID!, self.item_blockID: blockID, self.item_notifiedUser: false, self.item_notifiedBlockUser:false, self.item_timestamp: FIRServerValue.timestamp()]
 				userRef.updateChildValues(dic, withCompletionBlock: { error, firebaseRef in
-					if error != nil {
+					if let error = error {
 						self.debugLog("blocking failed [\(blockID)]")
 						let userInfo: [String: AnyObject] = [self.notifyInfo_uid: blockID, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
 						NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedBlock, object: self, userInfo: userInfo)
@@ -754,35 +831,51 @@ public class IF_FirebaseFollowHelper {
 	処理完了時に、*IF_FirebaseFollowHelperMessage.DidRemoveBlockProc*が通知されます。
 	*/
 	public func unBlock(userIDs: [String]) {
-		self.blockRef.queryOrderedByChild(item_uid).queryEqualToValue(self.firebaseRef.authData.uid).observeSingleEventOfType(.Value, withBlock: { data in
-			var removeList = [FDataSnapshot]()
+		let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
+		
+		if self.observeUID == nil {
+			self.debugLog("Not signed in user.")
+			let error = self.error(.NotSignedIn, message: "Not signed in user.")
+			userIDs.forEach() {
+				let userInfo: [String: AnyObject] = [self.notifyInfo_uid: $0, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
+				NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedRemoveBlock, object: self, userInfo: userInfo)
+			}
+			NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidRemoveBlockProc, object: self, userInfo: nil)
+			return
+		}
+		
+		self.blockRef.queryOrderedByChild(item_uid).queryEqualToValue(self.observeUID!).observeSingleEventOfType(.Value, withBlock: { data in
+			var removeList = [FIRDataSnapshot]()
 			data.children.forEach() {
-				let user = $0 as! FDataSnapshot
-				if let blockID = user.value[self.item_blockID] as? String {
-					if userIDs.contains(blockID) {
-						removeList.append(user)
+				let user = $0 as! FIRDataSnapshot
+				if let value = user.value as? [String: AnyObject] {
+					if let blockID = value[self.item_blockID] as? String {
+						if userIDs.contains(blockID) {
+							removeList.append(user)
+						}
 					}
 				}
 			}
 			
-			let timestamp = NSDate()	// 処理失敗時にメッセージに載せる
 			var procCount = 0
 			removeList.forEach() {
-				if let blockID = $0.value[self.item_blockID] as? String {
-					let removeRef = self.blockRef.childByAppendingPath($0.key)
-					removeRef.removeValueWithCompletionBlock() { error, firebaseRef in
-						if error != nil {
-							self.debugLog("remove block failed [\(blockID)]")
-							let userInfo: [String: AnyObject] = [self.notifyInfo_uid: blockID, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
-							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedRemoveBlock, object: self, userInfo: userInfo)
-						}
-						else {
-							self.debugLog("remove block [\(blockID)]")
-						}
-						
-						procCount += 1
-						if procCount >= removeList.count {
-							NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidRemoveBlockProc, object: self, userInfo: nil)
+				if let value = $0.value as? [String: AnyObject] {
+					if let blockID = value[self.item_blockID] as? String {
+						let removeRef = self.blockRef.child($0.key)
+						removeRef.removeValueWithCompletionBlock() { error, firebaseRef in
+							if let error = error {
+								self.debugLog("remove block failed [\(blockID)]")
+								let userInfo: [String: AnyObject] = [self.notifyInfo_uid: blockID, self.notifyInfo_error: error, self.notifyInfo_timestamp: timestamp]
+								NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.FailedRemoveBlock, object: self, userInfo: userInfo)
+							}
+							else {
+								self.debugLog("remove block [\(blockID)]")
+							}
+							
+							procCount += 1
+							if procCount >= removeList.count {
+								NSNotificationCenter.defaultCenter().postNotificationName(IF_FirebaseFollowHelperMessage.DidRemoveBlockProc, object: self, userInfo: nil)
+							}
 						}
 					}
 				}

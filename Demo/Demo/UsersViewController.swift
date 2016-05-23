@@ -11,18 +11,12 @@ import Firebase
 
 class UsersViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIPickerViewDataSource, UIPickerViewDelegate, UserInfoCellDelegate {
 	
-	// ************************************
-	// Please set the firebaseURL.
-	// ************************************
-	let firebaseURL = ""
-	
-	
 	let usersPath = "users"
-	var firebaseRef: Firebase!
-	var usersRef: Firebase!
-	var followHelper: IF_FirebaseFollowHelper!
+	var firebaseRef: FIRDatabaseReference!
+	var usersRef: FIRDatabaseReference!
 	
 	let defaultUserMail = "user01@test.com"
+	let defaultPassword = "password"
 	let userMaxNo = 20
 	
 	var usersInfo		= [(name: String, uid: String)]()
@@ -46,9 +40,8 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 		self.tableView.registerNib(nib, forCellReuseIdentifier: "Cell")
 		self.tableView.rowHeight = 102
 		
-		assert(self.firebaseURL != "", "Please set the firebaseURL.")
-		self.firebaseRef = Firebase(url: self.firebaseURL)
-		self.usersRef = self.firebaseRef.childByAppendingPath(self.usersPath)
+		self.firebaseRef = FIRDatabase.database().reference()
+		self.usersRef = self.firebaseRef.child(self.usersPath)
 		
 		NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(UsersViewController.handleNotification(_:)), name: nil, object: nil)
 		
@@ -66,8 +59,8 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 			let exist = self.usersInfo.map(){ $0.0 }.filter(){ $0 == userName }
 			if exist.count == 0 {
 				self.indicatorView?.message = "Create other account. [\(userName)]"
-				self.createAccount("\(userName)@test.com", pass: "pass", auth: true, completion: {
-					self.addUserData(userName, uid: self.firebaseRef.authData.uid)
+				self.createAccount("\(userName)@test.com", pass: self.defaultPassword, auth: true, completion: {
+					self.addUserData(userName, uid: FIRAuth.auth()!.currentUser!.uid)
 					self.userInfoButton.setTitle(userName, forState: .Normal)
 					if userNo < maxNo {
 						createOtherAccount(userNo + 1, maxNo: maxNo, isAddedOtherAccount: true, completion: completion)
@@ -93,17 +86,16 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 			self.indicatorView = self.createIndicatorView("processing.", message: "Sign in.")
 			self.presentViewController(self.indicatorView!, animated: true, completion: nil)
 			
-			self.auth(self.defaultUserMail, pass: "pass", completion: {
-				self.followHelper = IF_FirebaseFollowHelper(firebaseRef: self.firebaseRef)
-				self.addUserData("user01", uid: self.firebaseRef.authData.uid)
+			self.auth(self.defaultUserMail, pass: self.defaultPassword, completion: {
+				self.addUserData("user01", uid: FIRAuth.auth()!.currentUser!.uid)
 				self.userInfoButton.setTitle("user01", forState: .Normal)
 				
 				self.indicatorView?.message = "Retrieving users information."
 				self.createUsersInfo() {
 					createOtherAccount(2, maxNo: self.userMaxNo, isAddedOtherAccount: false, completion: { isAddedOtherAccount in
 						self.indicatorView?.message = "Sign in."
-						self.auth(self.defaultUserMail, pass: "pass", completion: {
-							self.addUserData("user01", uid: self.firebaseRef.authData.uid)
+						self.auth(self.defaultUserMail, pass: self.defaultPassword, completion: {
+							self.addUserData("user01", uid: FIRAuth.auth()!.currentUser!.uid)
 							self.createDataSourcesProc() {
 								self.indicatorView?.dismissViewControllerAnimated(true, completion: nil)
 								self.tableView.reloadData()
@@ -123,6 +115,7 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 	
 	func addUserData(name: String, uid: String) {
 		self.usersRef.queryOrderedByChild("uid").queryEqualToValue(uid).observeSingleEventOfType(.Value, withBlock: { snapshot in
+			print("[\(name), \(uid)] は \(snapshot.childrenCount)件ヒット")
 			if snapshot.childrenCount == 0 {
 				let autoIdPath = self.usersRef.childByAutoId()
 				let dic = ["name": name, "uid": uid]
@@ -132,15 +125,13 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 	}
 	
 	func createAccount(mail: String, pass: String, auth: Bool, completion: (() -> Void)?) {
-		self.firebaseRef.createUser(mail, password: pass, withCompletionBlock: {
-			if $0 != nil {
-				print($0)
-			}
-			else {
+		FIRAuth.auth()?.createUserWithEmail(mail, password: pass, completion: { user, error in
+			if let error = error {
+				print(error)
+			} else {
 				if auth == true {
 					self.auth(mail, pass: pass, completion: completion)
-				}
-				else {
+				} else {
 					completion?()
 				}
 			}
@@ -148,11 +139,10 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 	}
 	
 	func auth(mail: String, pass: String, completion: (() -> Void)?) {
-		self.firebaseRef.authUser(mail, password: pass, withCompletionBlock: { error, authData in
-			if error != nil {
+		FIRAuth.auth()?.signInWithEmail(mail, password: pass, completion: { user, error in
+			if let _ = error {
 				self.createAccount(mail, pass: pass, auth: true, completion: completion)
-			}
-			else {
+			} else {
 				completion?()
 			}
 		})
@@ -162,14 +152,16 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 		self.usersRef.observeSingleEventOfType(.Value, withBlock: { snapshot in
 			self.usersInfo.removeAll()
 			snapshot.children.forEach() {
-				let child = $0 as! FDataSnapshot
-				if let name = child.value["name"] as? String, let uid = child.value["uid"] as? String {
-					if uid != self.firebaseRef.authData.uid {
-						self.usersInfo.append((name, uid))
+				let child = $0 as! FIRDataSnapshot
+				if let value = child.value as? [String: AnyObject] {
+					if let name = value["name"] as? String, let uid = value["uid"] as? String {
+						if uid != FIRAuth.auth()!.currentUser!.uid {
+							self.usersInfo.append((name, uid))
+						}
 					}
-				}
-				else {
-					print("Incorrect data. [\(child)]")
+					else {
+						print("Incorrect data. [\(child)]")
+					}
 				}
 			}
 			
@@ -182,16 +174,16 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 		self.indicatorView?.message = "Retrieving users information."
 		self.createUsersInfo() {
 			self.indicatorView?.message = "Retrieving follow list."
-			self.followHelper.getFollowList() { 
+			IF_FirebaseFollowHelper.sharedHelper.getFollowList() {
 				self.followList = $0
 				self.indicatorView?.message = "Retrieving follower list."
-				self.followHelper.getFollowerList() { 
+				IF_FirebaseFollowHelper.sharedHelper.getFollowerList() { 
 					self.followerList = $0
 					self.indicatorView?.message = "Retrieving block list."
-					self.followHelper.getBlockList() {
+					IF_FirebaseFollowHelper.sharedHelper.getBlockList() {
 						self.blockList = $0
 						self.indicatorView?.message = "Retrieving blocker list."
-						self.followHelper.getBlockerList() {
+						IF_FirebaseFollowHelper.sharedHelper.getBlockerList() {
 							self.blockerList = $0
 							completion?()
 						}
@@ -239,7 +231,7 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 			let mail = String(format: "user%02d@test.com", self.chooseAccountRow + 1)
 			self.indicatorView = self.createIndicatorView("processing.", message: "Sign in.")
 			self.presentViewController(self.indicatorView!, animated: true, completion: nil)
-			self.auth(mail, pass: "pass") {
+			self.auth(mail, pass: self.defaultPassword) {
 				self.userInfoButton.setTitle(String(format: "user%02d", self.chooseAccountRow + 1), forState: .Normal)
 				self.createDataSourcesProc() {
 					self.indicatorView?.dismissViewControllerAnimated(true, completion: nil)
@@ -330,9 +322,9 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 			
 			let userInfo = self.usersInfo[indexPath.row]
 			if requestFollowStateTo == true {
-				self.followHelper.follow(userInfo.uid)
+				IF_FirebaseFollowHelper.sharedHelper.follow(userInfo.uid)
 			} else {
-				self.followHelper.unFollow(userInfo.uid)
+				IF_FirebaseFollowHelper.sharedHelper.unFollow(userInfo.uid)
 			}
 		}
 	}
@@ -344,9 +336,9 @@ class UsersViewController: UIViewController, UITableViewDataSource, UITableViewD
 			
 			let userInfo = self.usersInfo[indexPath.row]
 			if requestBlockStateTo == true {
-				self.followHelper.block(userInfo.uid)
+				IF_FirebaseFollowHelper.sharedHelper.block(userInfo.uid)
 			} else {
-				self.followHelper.unBlock(userInfo.uid)
+				IF_FirebaseFollowHelper.sharedHelper.unBlock(userInfo.uid)
 			}
 		}
 	}

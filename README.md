@@ -2,6 +2,8 @@
 Firebaseにユーザフォロー機能を追加します。  
 ドキュメントは[こちら](http://ict-fractal.com/OSSDoc/IF_FirebaseFollowHelperKit/index.html)です。
 
+#### 新しいFirebase SDK(3.2.0)に対応しました
+
 ## Features
 1. Firebaseのデータ構造を意識せずに、フォロー関連の機能を利用できます。
 2. 他ユーザがログインユーザに関わる操作を行った場合、リアルタイムに通知を受け取る事ができます。
@@ -13,9 +15,10 @@ IF_FirebaseFollowHelperKitはFirebaseに機能を追加するため、Firebase�
 またユーザ識別に認証情報を利用するため、認証済みのFirebaseインスタンスを利用する必要があります。
 
 ### 初期化
-self.firebaseRefは認証済みのFirebaseインスタンスです。
+初期化は必要ありません。
+ヘルパーのシングルトンインスタンスにアクセスしてください。
 ```
-let followHelper = IF_FirebaseFollowHelper(firebaseRef: self.firebaseRef)
+let followHelper = IF_FirebaseFollowHelper.sharedHelper
 ```
 
 ### ユーザをフォローする
@@ -76,7 +79,8 @@ followHelper.getBlockerList() { blockerList in
 発行されるメッセージは[こちら](http://ict-fractal.com/OSSDoc/IF_FirebaseFollowHelperKit/Structs/IF_FirebaseFollowHelperMessage.html)をご覧下さい。  
 
 例）他のユーザが認証ユーザをフォローした際に通知される **AddedFollower** メッセージを受け取ります  
-```
+
+```  
 override func viewDidLoad() {
   super.viewDidLoad()
 	NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(ViewController.handleNotification(_:)), name: nil, object: nil)
@@ -88,11 +92,13 @@ func handleNotification(notification: NSNotification) {
       print("[\(uid)] followed you. \(timestamp)")
     }
   }
-}
+}  
 ```
 
 ## Runtime Requirements
-Firebase
+Firebase/Core  
+Firebase/Auth  
+Firebase/Database  
 
 ## Installation and Setup
 プロジェクトに *IF_FirebaseFollowHelper.swift* を追加してください。
@@ -100,13 +106,15 @@ Firebase
 ## Demo Setup
 デモを確認する場合、次の手順を実施してください。  
 1. Demoディレクトリで *pod install* を実行し、Firebaseを環境に追加します。  
-2. 作成された *Demo.xcworkspace* を開きます。  
-3. *UsersViewController.swift* 内にある *firebaseURL* に、Firebase Data URLを設定します。  
+2. 作成された *Demo.xcworkspace* を開き、実行します。   
+　※ **共有目的のFirebaseDBを設定していますので、節度を持ってご利用ください。**
 
 ## Cocoapods
 Cocoapodsからのインストールに対応しています。  
 下記のようにPodfileを作成し、 *pod install* を実行してください。   
-  ※Firebaseもインストールされます。
+　※ Firebaseもインストールされます。  
+　※ 旧FirebaseSDK対応版はバージョン **0.0.1** です。
+  
 ```
 use_frameworks!
 
@@ -114,6 +122,9 @@ target ‘プロジェクト名’ do
 pod ‘IF_FirebaseFollowHelperKit’
 end
 ```
+
+## Document
+[http://ict-fractal.com/OSSDoc/IF_FirebaseFollowHelperKit/index.html](http://ict-fractal.com/OSSDoc/IF_FirebaseFollowHelperKit/index.html)
 
 ## License
 [MIT License](https://github.com/ICTFractal/IF_FirebaseFollowHelperKit/edit/master/LICENSE)
